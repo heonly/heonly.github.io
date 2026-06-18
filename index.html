@@ -1,0 +1,1846 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ImageForge - 多API图片生成工具</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #09090b; --surface: #18181b; --surface2: #27272a;
+    --surface3: #303035; --border: #3f3f46; --border2: #52525b;
+    --text: #fafafa; --text2: #a1a1aa; --text3: #71717a;
+    --accent: #8b5cf6; --accent-hover: #7c3aed; --accent2: #a78bfa;
+    --accent-soft: rgba(139,92,246,0.15); --success: #22c55e;
+    --danger: #ef4444; --warn: #eab308; --radius: 12px;
+    --radius-sm: 8px;
+  }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; }
+
+  /* ===== HEADER ===== */
+  .header { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; border-bottom: 1px solid var(--border); background: var(--surface); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 100; }
+  .header-left { display: flex; align-items: center; gap: 16px; }
+  .header-nav { display: flex; gap: 4px; }
+  .header-nav-btn { padding: 6px 14px; border: none; background: transparent; color: var(--text3); border-radius: var(--radius-sm); cursor: pointer; font-size: 13px; font-weight: 500; transition: all .15s; }
+  .header-nav-btn:hover { color: var(--text2); background: var(--surface2); }
+  .header-nav-btn.active { color: var(--text); background: var(--surface2); }
+  .header-right { display: flex; gap: 8px; align-items: center; }
+  .key-indicator { display: flex; align-items: center; gap: 6px; padding: 5px 12px; background: var(--surface2); border-radius: 20px; font-size: 12px; color: var(--text2); }
+  .key-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
+
+  /* ===== BUTTONS ===== */
+  .btn { padding: 8px 16px; border: none; border-radius: var(--radius-sm); cursor: pointer; font-size: 13px; font-weight: 600; transition: all .15s; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+  .btn-ghost:hover { border-color: var(--border2); color: var(--text); background: var(--surface2); }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid rgba(239,68,68,0.3); }
+  .btn-danger:hover { background: rgba(239,68,68,0.1); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 6px; }
+  .btn-lg { padding: 12px 28px; font-size: 15px; border-radius: var(--radius-sm); }
+  .btn-icon { width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); background: var(--surface2); border: 1px solid var(--border); color: var(--text2); cursor: pointer; transition: all .15s; font-size: 16px; }
+  .btn-icon:hover { border-color: var(--border2); color: var(--text); }
+  .btn-icon.del:hover { color: var(--danger); border-color: rgba(239,68,68,0.4); }
+
+  /* ===== MAIN LAYOUT ===== */
+  .app { display: flex; height: calc(100vh - 49px); }
+
+  /* ===== LEFT SIDEBAR - Settings ===== */
+  .sidebar { width: 320px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
+  .sidebar-scroll { flex: 1; overflow-y: auto; padding: 16px; }
+  .sidebar-section { margin-bottom: 20px; }
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .section-title { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 1.2px; }
+
+  /* Provider selector */
+  .provider-select { width: 100%; padding: 10px 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 13px; outline: none; appearance: none; cursor: pointer; }
+  .provider-select:focus { border-color: var(--accent); }
+  .provider-select-wrap { position: relative; }
+  .provider-select-wrap::after { content: '▾'; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--text3); pointer-events: none; font-size: 12px; }
+  .provider-manage { display: flex; gap: 6px; margin-top: 8px; }
+  .provider-info { margin-top: 8px; padding: 10px 12px; background: var(--surface2); border-radius: var(--radius-sm); font-size: 12px; color: var(--text2); display: flex; flex-direction: column; gap: 4px; }
+  .provider-info-row { display: flex; justify-content: space-between; }
+  .provider-info-label { color: var(--text3); }
+
+  /* Config controls */
+  .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .config-full { grid-column: 1 / -1; }
+  .config-label { font-size: 12px; color: var(--text3); font-weight: 600; margin-bottom: 6px; display: block; }
+  .config-select, .config-input { width: 100%; padding: 8px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 13px; outline: none; }
+  .config-select:focus, .config-input:focus { border-color: var(--accent); }
+  .config-select { appearance: none; cursor: pointer; }
+  .config-number { width: 100%; padding: 8px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 13px; outline: none; }
+
+  /* Image Upload */
+  .image-upload-zone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 20px; text-align: center; cursor: pointer; transition: all .2s; position: relative; }
+  .image-upload-zone:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .image-upload-zone.has-image { padding: 0; border-style: solid; border-color: var(--border); }
+  .image-upload-zone.dragover { border-color: var(--accent); background: var(--accent-soft); }
+  .upload-icon { font-size: 28px; margin-bottom: 8px; opacity: 0.5; }
+  .upload-text { font-size: 13px; color: var(--text2); }
+  .upload-hint { font-size: 11px; color: var(--text3); margin-top: 4px; }
+  .upload-preview { position: relative; }
+  .upload-preview img { width: 100%; max-height: 200px; object-fit: contain; border-radius: calc(var(--radius) - 2px); display: block; }
+  .upload-remove { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%; background: rgba(0,0,0,0.7); color: #fff; border: none; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(8px); }
+  .upload-remove:hover { background: var(--danger); }
+  .image-url-input { display: flex; gap: 6px; margin-top: 8px; }
+  .image-url-input input { flex: 1; }
+
+  /* ===== CENTER - Main workspace ===== */
+  .workspace { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  #tabGenerate { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* Prompt bar */
+  .prompt-bar { padding: 16px 24px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .prompt-main { display: flex; gap: 12px; align-items: flex-end; }
+  .prompt-box { flex: 1; position: relative; }
+  .prompt-textarea { width: 100%; padding: 14px 16px; padding-right: 80px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 14px; line-height: 1.6; resize: none; outline: none; min-height: 56px; max-height: 160px; transition: border-color .2s; }
+  .prompt-textarea:focus { border-color: var(--accent); }
+  .prompt-textarea::placeholder { color: var(--text3); }
+  .prompt-submit { position: absolute; right: 8px; bottom: 8px; width: 40px; height: 40px; border-radius: var(--radius-sm); background: var(--accent); color: #fff; border: none; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; transition: background .15s; }
+  .prompt-submit:hover { background: var(--accent-hover); }
+  .prompt-submit:disabled { opacity: 0.4; cursor: not-allowed; }
+  .prompt-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+  .prompt-shortcut { font-size: 11px; color: var(--text3); }
+  .prompt-shortcut kbd { background: var(--surface2); padding: 1px 5px; border-radius: 4px; border: 1px solid var(--border); font-family: inherit; font-size: 10px; }
+
+  /* Reference image chips in prompt area */
+  .ref-chips { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .ref-chip { display: flex; align-items: center; gap: 6px; padding: 4px 10px 4px 4px; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; font-size: 12px; color: var(--text2); }
+  .ref-chip img { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
+  .ref-chip-remove { cursor: pointer; color: var(--text3); font-size: 14px; line-height: 1; }
+  .ref-chip-remove:hover { color: var(--danger); }
+
+  /* ===== Gallery ===== */
+  .gallery { flex: 1; overflow-y: auto; padding: 20px 24px; }
+  .gallery-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .gallery-title { font-size: 15px; font-weight: 600; color: var(--text2); }
+  .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+  .gallery-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: all .2s; cursor: default; }
+  .gallery-card:hover { border-color: var(--border2); transform: translateY(-2px); box-shadow: 0 12px 32px rgba(0,0,0,0.4); }
+  .gallery-card-img { position: relative; background: #000; display: flex; align-items: center; justify-content: center; min-height: 180px; overflow: hidden; }
+  .gallery-card-img img { max-width: 100%; max-height: 400px; object-fit: contain; }
+  .gallery-card-actions { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.65); display: flex; align-items: center; justify-content: center; gap: 6px; padding: 12px; opacity: 0; transition: opacity .2s; backdrop-filter: blur(4px); pointer-events: none; flex-wrap: wrap; }
+  .gallery-card:hover .gallery-card-actions { opacity: 1; pointer-events: auto; }
+  .gallery-card-actions .btn-sm { font-size: 12px; padding: 5px 10px; }
+  .gallery-card-img img { cursor: zoom-in; }
+  .gallery-card-body { padding: 12px 14px; }
+  .gallery-card-prompt { font-size: 13px; color: var(--text); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .gallery-card-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+  .gallery-badge { font-size: 11px; color: var(--text3); background: var(--surface2); padding: 2px 8px; border-radius: 4px; }
+  .gallery-time { font-size: 11px; color: var(--text3); }
+  .gallery-ref-badge { font-size: 11px; color: var(--accent2); margin-left: 6px; }
+
+  /* Empty state */
+  .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; padding: 40px; }
+  .empty-icon { font-size: 56px; margin-bottom: 16px; opacity: 0.2; }
+  .empty h3 { font-size: 17px; color: var(--text); margin-bottom: 6px; }
+  .empty p { font-size: 13px; color: var(--text3); line-height: 1.6; max-width: 360px; }
+
+  /* ===== PROGRESS BAR (inline, replaces full-screen loading) ===== */
+  .progress-bar-wrap { height: 3px; background: var(--border); overflow: hidden; transition: opacity .3s; }
+  .progress-bar-wrap.idle { opacity: 0; height: 0; }
+  .progress-bar-inner { height: 100%; background: linear-gradient(90deg, var(--accent), #ec4899, var(--accent)); background-size: 200% 100%; animation: progressShimmer 1.5s ease infinite; width: 100%; transition: width .3s; }
+  @keyframes progressShimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  /* Inline progress banner */
+  .progress-banner { display: none; padding: 10px 24px; background: var(--surface2); border-bottom: 1px solid var(--border); align-items: center; gap: 12px; animation: slideDown .2s ease; }
+  .progress-banner.active { display: flex; }
+  @keyframes slideDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .progress-pulse { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); animation: pulse 1.2s ease infinite; flex-shrink: 0; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
+  .progress-text { font-size: 13px; color: var(--text2); flex: 1; }
+  .progress-text strong { color: var(--text); }
+  .progress-timer { font-size: 12px; color: var(--text3); font-variant-numeric: tabular-nums; }
+  .progress-cancel { font-size: 12px; color: var(--text3); background: none; border: 1px solid var(--border); border-radius: 6px; padding: 3px 10px; cursor: pointer; transition: all .15s; }
+  .progress-cancel:hover { color: var(--danger); border-color: var(--danger); }
+
+  /* ===== LOG PANEL ===== */
+  .log-panel { border-top: 1px solid var(--border); background: var(--bg); display: flex; flex-direction: column; max-height: 0; overflow: hidden; transition: max-height .3s ease; }
+  .log-panel.open { max-height: 260px; }
+  .log-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .log-header-left { display: flex; align-items: center; gap: 8px; }
+  .log-title { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; }
+  .log-badge { font-size: 10px; background: var(--surface2); color: var(--text3); padding: 1px 6px; border-radius: 4px; }
+  .log-body { flex: 1; overflow-y: auto; padding: 8px 12px; font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace; font-size: 11px; line-height: 1.6; }
+  .log-entry { display: flex; gap: 8px; padding: 2px 0; }
+  .log-time { color: var(--text3); flex-shrink: 0; }
+  .log-tag { padding: 0 5px; border-radius: 3px; font-size: 10px; font-weight: 600; flex-shrink: 0; }
+  .log-tag.info { background: rgba(59,130,246,0.15); color: #60a5fa; }
+  .log-tag.ok { background: rgba(34,197,94,0.15); color: #4ade80; }
+  .log-tag.err { background: rgba(239,68,68,0.15); color: #f87171; }
+  .log-tag.warn { background: rgba(234,179,8,0.15); color: #facc15; }
+  .log-tag.req { background: rgba(139,92,246,0.15); color: var(--accent2); }
+  .log-tag.res { background: rgba(236,72,153,0.15); color: #f472b6; }
+  .log-msg { color: var(--text2); word-break: break-all; }
+  .log-msg .url { color: var(--accent2); }
+  .log-msg .dim { color: var(--text3); }
+  .log-toggle { display: flex; align-items: center; gap: 6px; padding: 6px 16px; background: var(--surface); border-top: 1px solid var(--border); cursor: pointer; font-size: 11px; color: var(--text3); transition: color .15s; }
+  .log-toggle:hover { color: var(--text2); }
+  .log-toggle-icon { transition: transform .2s; font-size: 10px; }
+  .log-toggle-icon.open { transform: rotate(180deg); }
+
+  /* ===== LOADING (removed — replaced by inline progress) ===== */
+
+  /* ===== MODAL ===== */
+  .modal-bg { position: fixed; inset: 0; background: rgba(9,9,11,0.75); display: flex; align-items: center; justify-content: center; z-index: 999; backdrop-filter: blur(4px); }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; width: 500px; max-width: 95vw; max-height: 90vh; overflow-y: auto; }
+  .modal-head { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .modal-title { font-size: 16px; font-weight: 700; }
+  .modal-body { padding: 20px 24px; }
+  .modal-foot { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+  .field { margin-bottom: 16px; }
+  .field-label { display: block; font-size: 12px; font-weight: 600; color: var(--text3); margin-bottom: 6px; }
+  .field-input { width: 100%; padding: 10px 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 14px; outline: none; }
+  .field-input:focus { border-color: var(--accent); }
+  .field-hint { font-size: 11px; color: var(--text3); margin-top: 4px; }
+  .field-row { display: flex; gap: 8px; align-items: flex-end; }
+  .field-row .field-input { flex: 1; }
+  .field-row .btn { flex-shrink: 0; white-space: nowrap; }
+  .model-select-wrap { position: relative; flex: 1; }
+  .model-select-wrap::after { content: '▾'; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--text3); pointer-events: none; font-size: 12px; }
+  .model-select-wrap select { width: 100%; padding: 10px 32px 10px 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 14px; outline: none; appearance: none; cursor: pointer; }
+  .model-select-wrap select:focus { border-color: var(--accent); }
+  .fetch-models-btn { padding: 10px 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--accent2); cursor: pointer; font-size: 13px; font-weight: 600; transition: all .15s; white-space: nowrap; }
+  .fetch-models-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .fetch-models-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .fetch-models-btn.loading { color: var(--text3); }
+  .model-count { font-size: 11px; color: var(--text3); margin-top: 4px; }
+  .model-filter { width: 100%; padding: 8px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 13px; outline: none; margin-top: 6px; }
+  .model-filter:focus { border-color: var(--accent); }
+  .model-filter::placeholder { color: var(--text3); }
+  .field-textarea { width: 100%; padding: 10px 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 13px; font-family: 'SF Mono', 'Fira Code', monospace; outline: none; resize: vertical; min-height: 100px; }
+  .field-textarea:focus { border-color: var(--accent); }
+
+  /* ===== TOAST ===== */
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 20px; color: var(--text); font-size: 13px; z-index: 2000; animation: toastIn .25s ease; display: flex; align-items: center; gap: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+  .toast.error { border-color: var(--danger); }
+  .toast.success { border-color: var(--success); }
+  @keyframes toastIn { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+  /* ===== LIGHTBOX ===== */
+  .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.94); z-index: 1001; display: flex; align-items: center; justify-content: center; flex-direction: column; cursor: default; }
+  .lightbox img { max-width: 92vw; max-height: 88vh; object-fit: contain; border-radius: 8px; cursor: zoom-in; transition: transform .2s; }
+  .lightbox img.zoomed { transform: scale(2); cursor: zoom-out; }
+  .lightbox-toolbar { display: flex; gap: 8px; margin-top: 14px; }
+  .lightbox-toolbar .btn { font-size: 13px; }
+
+  /* ===== SCROLLBAR ===== */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 900px) {
+    .app { flex-direction: column; }
+    .sidebar { width: 100%; max-height: 50vh; border-right: none; border-bottom: 1px solid var(--border); }
+    .gallery-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-left">
+    <div class="header-nav">
+      <button class="header-nav-btn active" data-tab="generate" onclick="switchTab('generate', this)">生图</button>
+      <button class="header-nav-btn" data-tab="gallery" onclick="switchTab('gallery', this)">历史</button>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="key-indicator">
+      <span class="key-dot" id="keyDot" style="background:var(--text3)"></span>
+      <span id="keyLabel">未配置API</span>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="showProviderModal()">设置 API</button>
+  </div>
+</div>
+
+<!-- App -->
+<div class="app">
+
+  <!-- Sidebar: Settings -->
+  <div class="sidebar">
+    <div class="sidebar-scroll">
+
+      <!-- Provider -->
+      <div class="sidebar-section">
+        <div class="section-header">
+          <span class="section-title">API 服务商</span>
+          <button class="btn btn-ghost btn-sm" onclick="showProviderModal()">+ 添加</button>
+        </div>
+        <div class="provider-select-wrap">
+          <select id="providerSelect" class="provider-select" onchange="onProviderChange()">
+            <option value="">选择服务商...</option>
+          </select>
+        </div>
+        <div class="provider-info" id="providerInfo" style="display:none;"></div>
+        <div class="provider-manage" id="providerManage" style="display:none;">
+          <button class="btn btn-ghost btn-sm" onclick="editCurrentProvider()">编辑</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteCurrentProvider()">删除</button>
+        </div>
+      </div>
+
+      <!-- Reference Image -->
+      <div class="sidebar-section">
+        <div class="section-header">
+          <span class="section-title">参考图片</span>
+          <button class="btn btn-ghost btn-sm" id="clearRefBtn" onclick="clearRefImage()" style="display:none;">清除</button>
+        </div>
+        <div class="image-upload-zone" id="uploadZone" onclick="triggerUpload()" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+          <div id="uploadPlaceholder">
+            <div class="upload-icon">+</div>
+            <div class="upload-text">点击或拖拽上传参考图</div>
+            <div class="upload-hint">支持 JPG / PNG / WebP · 可用于图生图</div>
+          </div>
+          <div id="uploadPreview" class="upload-preview" style="display:none;">
+            <img id="previewImg" src="" alt="参考图">
+            <button class="upload-remove" onclick="event.stopPropagation(); clearRefImage()">✕</button>
+          </div>
+        </div>
+        <input type="file" id="fileInput" accept="image/*" style="display:none;" onchange="onFileSelected(event)">
+        <div class="image-url-input">
+          <input type="text" id="imageUrlInput" class="config-input" placeholder="或粘贴图片URL..." style="font-size:12px;">
+          <button class="btn btn-ghost btn-sm" onclick="loadRefFromUrl()">加载</button>
+        </div>
+      </div>
+
+      <!-- Generation Settings -->
+      <div class="sidebar-section">
+        <div class="section-header">
+          <span class="section-title">生成设置</span>
+        </div>
+        <div class="config-grid">
+          <div>
+            <label class="config-label">图片尺寸</label>
+            <select id="sizeSelect" class="config-select">
+              <option value="auto" selected>自动（默认）</option>
+              <option value="1024x1024">1024×1024</option>
+              <option value="1024x1536">1024×1536 竖版</option>
+              <option value="1536x1024">1536×1024 横版</option>
+              <option value="1024x1792">1024×1792 长竖</option>
+              <option value="1792x1024">1792×1024 长横</option>
+              <option value="512x512">512×512</option>
+            </select>
+          </div>
+          <div>
+            <label class="config-label">质量</label>
+            <select id="qualitySelect" class="config-select">
+              <option value="auto">自动</option>
+              <option value="high">高</option>
+              <option value="medium">中</option>
+              <option value="low">低</option>
+            </select>
+          </div>
+          <div>
+            <label class="config-label">数量</label>
+            <input type="number" id="numImages" class="config-number" value="1" min="1" max="4">
+          </div>
+          <div>
+            <label class="config-label">超时时间(秒)</label>
+            <input type="number" id="timeoutSeconds" class="config-number" value="180" min="30" max="600" step="30">
+          </div>
+          <div>
+            <label class="config-label">响应格式</label>
+            <select id="responseFormat" class="config-select">
+              <option value="url">URL</option>
+              <option value="b64_json">Base64</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Presets -->
+      <div class="sidebar-section">
+        <div class="section-header">
+          <span class="section-title">快速提示词模板</span>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+          <button class="btn btn-ghost btn-sm" onclick="useTemplate('一张高质量的照片，极致细节，8K')">写实照片</button>
+          <button class="btn btn-ghost btn-sm" onclick="useTemplate('水彩画风格，柔和的色彩，艺术感')">水彩画</button>
+          <button class="btn btn-ghost btn-sm" onclick="useTemplate('动漫风格，精致的眼睛，赛璐璐渲染')">动漫风</button>
+          <button class="btn btn-ghost btn-sm" onclick="useTemplate('3D渲染，Octane渲染，体积光，电影质感')">3D渲染</button>
+          <button class="btn btn-ghost btn-sm" onclick="useTemplate('像素艺术，8-bit风格，复古游戏')">像素风</button>
+          <button class="btn btn-ghost btn-sm" onclick="useTemplate('油画风格，印象派，莫奈风格')">油画</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Main Workspace -->
+  <div class="workspace">
+    <!-- Tab: Generate -->
+    <div id="tabGenerate">
+      <!-- Prompt bar -->
+      <div class="prompt-bar">
+        <div class="ref-chips" id="refChips"></div>
+        <div class="prompt-main">
+          <div class="prompt-box">
+            <textarea id="promptInput" class="prompt-textarea" placeholder="描述你想生成的图片... (Ctrl+Enter 发送)" rows="2"></textarea>
+            <button id="generateBtn" class="prompt-submit" onclick="generate()" title="生成">▶</button>
+          </div>
+        </div>
+        <div class="prompt-bottom">
+          <span class="prompt-shortcut"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> 发送 · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd> 清空</span>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <span id="refStatus" style="font-size:12px; color:var(--text3); display:none;">参考图将随请求发送</span>
+            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('promptInput').value=''">清空</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Progress bar -->
+      <div class="progress-bar-wrap idle" id="progressBarWrap">
+        <div class="progress-bar-inner" id="progressBarInner"></div>
+      </div>
+
+      <!-- Progress banner -->
+      <div class="progress-banner" id="progressBanner">
+        <div class="progress-pulse"></div>
+        <div class="progress-text" id="progressText">正在生成图片...</div>
+        <div class="progress-timer" id="progressTimer">0s</div>
+        <button class="progress-cancel" onclick="cancelGeneration()">取消</button>
+      </div>
+
+      <!-- Gallery in generate tab -->
+      <div class="gallery" id="galleryArea" style="flex:1; min-height:0;">
+        <div class="empty" id="emptyState">
+          <div class="empty-icon">+</div>
+          <h3>开始创作</h3>
+          <p>在左侧配置 API 服务商，输入提示词后点击生成。<br>支持上传参考图片进行图生图。</p>
+        </div>
+        <div class="gallery-grid" id="galleryGrid" style="display:none;"></div>
+      </div>
+
+      <!-- Log panel -->
+      <div class="log-panel" id="logPanel">
+        <div class="log-header">
+          <div class="log-header-left">
+            <span class="log-title">生成日志</span>
+            <span class="log-badge" id="logCount">0</span>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="clearLogs()" style="padding:2px 8px; font-size:11px;">清空</button>
+        </div>
+        <div class="log-body" id="logBody"></div>
+      </div>
+      <div class="log-toggle" onclick="toggleLogPanel()">
+        <span class="log-toggle-icon" id="logToggleIcon">▲</span>
+        <span>日志</span>
+      </div>
+    </div>
+
+    <!-- Tab: Gallery (full) -->
+    <div id="tabGallery" style="display:none;">
+      <div class="gallery" style="padding-top:20px;">
+        <div class="gallery-header">
+          <span class="gallery-title">生成历史 (<span id="historyCount">0</span>)</span>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-ghost btn-sm" onclick="exportHistory()">导出JSON</button>
+            <button class="btn btn-danger btn-sm" onclick="clearHistory()">清空全部</button>
+          </div>
+        </div>
+        <div class="gallery-grid" id="galleryGrid2"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Provider Modal -->
+<div id="providerModal" class="modal-bg" style="display:none;">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title" id="modalTitle">添加 API 服务商</span>
+      <button class="btn-icon" onclick="hideProviderModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editProviderId">
+      <div class="field">
+        <label class="field-label">名称</label>
+        <input type="text" id="pName" class="field-input" placeholder="例如：OpenAI、Gemini、硅基流动">
+      </div>
+      <div class="field">
+        <label class="field-label">API 类型</label>
+        <select id="pType" class="field-input" onchange="onModalTypeChange()">
+          <option value="openai-images">OpenAI Images API (gpt-image-1, dall-e-3)</option>
+          <option value="openai-compatible">OpenAI 兼容接口 (硅基流动等)</option>
+          <option value="gemini">Google Gemini</option>
+          <option value="custom">自定义请求</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">API Base URL</label>
+        <input type="text" id="pUrl" class="field-input" placeholder="https://api.openai.com">
+        <div class="field-hint" id="pUrlHint">OpenAI: https://api.openai.com</div>
+      </div>
+      <div class="field">
+        <label class="field-label">API Key</label>
+        <input type="password" id="pKey" class="field-input" placeholder="sk-...">
+      </div>
+      <div class="field">
+        <label class="field-label">模型</label>
+        <div class="field-row">
+          <div class="model-select-wrap" id="modelSelectWrap">
+            <select id="pModelSelect" class="field-input" onchange="onModelSelectChange()">
+              <option value="">输入模型名或点击获取...</option>
+            </select>
+          </div>
+          <input type="text" id="pModel" class="field-input" placeholder="gpt-image-1" style="display:none;">
+          <button class="fetch-models-btn" id="fetchModelsBtn" onclick="fetchModels()">获取模型</button>
+        </div>
+        <input type="text" id="pModelFilter" class="model-filter" placeholder="搜索模型..." oninput="filterModels()" style="display:none;">
+        <div class="model-count" id="modelCount"></div>
+        <div class="field-hint" id="pModelHint">输入 API URL 和 Key 后，点击「获取模型」自动拉取可用模型列表</div>
+      </div>
+      <div class="field" id="fieldCustomPath" style="display:none;">
+        <label class="field-label">自定义请求路径</label>
+        <input type="text" id="pCustomPath" class="field-input" placeholder="/v1/images/generations">
+      </div>
+      <div class="field" id="fieldCustomBody" style="display:none;">
+        <label class="field-label">自定义请求体模板 (JSON)</label>
+        <textarea id="pCustomBody" class="field-textarea" placeholder='{"prompt": "{{PROMPT}}", "size": "{{SIZE}}"}'></textarea>
+        <div class="field-hint">可用变量: {{PROMPT}}, {{SIZE}}, {{N}}, {{QUALITY}}, {{IMAGE_BASE64}}</div>
+      </div>
+      <div class="field" id="fieldCustomResp" style="display:none;">
+        <label class="field-label">图片数据路径 (响应JSON中)</label>
+        <input type="text" id="pCustomResp" class="field-input" placeholder="data.0.b64_json">
+        <div class="field-hint">用点号表示嵌套路径；支持 b64_json 和 url 两种格式</div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="hideProviderModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveProvider()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== State =====
+let providers = JSON.parse(localStorage.getItem('if2_providers') || '[]');
+let history = JSON.parse(localStorage.getItem('if2_history') || '[]');
+let activeProviderId = localStorage.getItem('if2_active') || '';
+let refImage = null; // { type: 'base64'|'url', value: string, mimeType: string }
+let abortController = null;
+let abortTimeout = null;
+let logEntries = [];
+let logCount = 0;
+let progressTimer = null;
+let progressStart = 0;
+let fetchedModels = []; // Store fetched models for the modal
+
+// ===== Logging =====
+function addLog(tag, msg) {
+  const now = new Date();
+  const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}.${String(now.getMilliseconds()).padStart(3,'0')}`;
+  logEntries.push({ ts, tag, msg });
+  logCount++;
+  document.getElementById('logCount').textContent = logCount;
+  const body = document.getElementById('logBody');
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML = `<span class="log-time">${ts}</span><span class="log-tag ${tag}">${tag.toUpperCase()}</span><span class="log-msg">${msg}</span>`;
+  body.appendChild(entry);
+  body.scrollTop = body.scrollHeight;
+}
+
+function clearLogs() {
+  logEntries = [];
+  logCount = 0;
+  document.getElementById('logCount').textContent = '0';
+  document.getElementById('logBody').innerHTML = '';
+}
+
+function toggleLogPanel() {
+  const panel = document.getElementById('logPanel');
+  const icon = document.getElementById('logToggleIcon');
+  panel.classList.toggle('open');
+  icon.classList.toggle('open');
+}
+
+// ===== Progress =====
+function showProgress(text) {
+  progressStart = Date.now();
+  document.getElementById('progressBanner').classList.add('active');
+  document.getElementById('progressBarWrap').classList.remove('idle');
+  document.getElementById('progressText').innerHTML = text;
+  document.getElementById('generateBtn').disabled = true;
+  progressTimer = setInterval(() => {
+    const elapsed = ((Date.now() - progressStart) / 1000).toFixed(1);
+    document.getElementById('progressTimer').textContent = elapsed + 's';
+  }, 100);
+}
+
+function updateProgress(text) {
+  document.getElementById('progressText').innerHTML = text;
+}
+
+function hideProgress() {
+  document.getElementById('progressBanner').classList.remove('active');
+  document.getElementById('progressBarWrap').classList.add('idle');
+  document.getElementById('generateBtn').disabled = false;
+  if (progressTimer) { clearInterval(progressTimer); progressTimer = null; }
+}
+
+// ===== Init =====
+function init() {
+  renderProviderSelect();
+  updateRefChips();
+  renderGallery();
+  updateKeyIndicator();
+
+  // Keyboard shortcuts
+  document.getElementById('promptInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); generate(); }
+    if (e.key === 'C' && e.ctrlKey && e.shiftKey) { e.preventDefault(); document.getElementById('promptInput').value = ''; }
+  });
+
+  // Auto-resize textarea
+  document.getElementById('promptInput').addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 160) + 'px';
+  });
+}
+
+// ===== Tabs =====
+function switchTab(tab, btn) {
+  document.querySelectorAll('.header-nav-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  document.getElementById('tabGenerate').style.display = tab === 'generate' ? '' : 'none';
+  document.getElementById('tabGallery').style.display = tab === 'gallery' ? '' : 'none';
+  if (tab === 'gallery') renderGalleryFull();
+}
+
+// ===== Provider Management =====
+function renderProviderSelect() {
+  const sel = document.getElementById('providerSelect');
+  sel.innerHTML = '<option value="">选择服务商...</option>' +
+    providers.map(p => `<option value="${p.id}" ${p.id === activeProviderId ? 'selected' : ''}>${esc(p.name)} — ${esc(p.model || '未设置模型')}</option>`).join('');
+  onProviderChange();
+}
+
+function onProviderChange() {
+  const id = document.getElementById('providerSelect').value;
+  activeProviderId = id;
+  localStorage.setItem('if2_active', id);
+  const info = document.getElementById('providerInfo');
+  const manage = document.getElementById('providerManage');
+  const p = providers.find(x => x.id === id);
+  if (p) {
+    info.style.display = '';
+    manage.style.display = '';
+    const typeMap = { 'openai-images': 'OpenAI Images', 'openai-compatible': '兼容接口', 'gemini': 'Gemini', 'custom': '自定义' };
+    info.innerHTML = `
+      <div class="provider-info-row"><span class="provider-info-label">类型</span><span>${typeMap[p.type] || p.type}</span></div>
+      <div class="provider-info-row"><span class="provider-info-label">模型</span><span>${esc(p.model || '未设置')}</span></div>
+      <div class="provider-info-row"><span class="provider-info-label">URL</span><span style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(p.baseUrl)}</span></div>
+    `;
+  } else {
+    info.style.display = 'none';
+    manage.style.display = 'none';
+  }
+  updateKeyIndicator();
+}
+
+function updateKeyIndicator() {
+  const dot = document.getElementById('keyDot');
+  const label = document.getElementById('keyLabel');
+  const p = providers.find(x => x.id === activeProviderId);
+  if (p) {
+    dot.style.background = 'var(--success)';
+    label.textContent = p.name;
+  } else {
+    dot.style.background = 'var(--text3)';
+    label.textContent = providers.length > 0 ? '请选择服务商' : '未配置API';
+  }
+}
+
+function editCurrentProvider() {
+  if (activeProviderId) showProviderModal(activeProviderId);
+}
+
+function deleteCurrentProvider() {
+  if (!activeProviderId) return;
+  if (!confirm('确定删除该服务商？')) return;
+  providers = providers.filter(x => x.id !== activeProviderId);
+  activeProviderId = providers.length > 0 ? providers[0].id : '';
+  localStorage.setItem('if2_active', activeProviderId);
+  localStorage.setItem('if2_providers', JSON.stringify(providers));
+  renderProviderSelect();
+  showToast('已删除', 'success');
+}
+
+// ===== Provider Modal =====
+function showProviderModal(editId) {
+  document.getElementById('providerModal').style.display = 'flex';
+  document.getElementById('editProviderId').value = editId || '';
+  const modelSelect = document.getElementById('pModelSelect');
+  const modelInput = document.getElementById('pModel');
+  const modelFilter = document.getElementById('pModelFilter');
+  const modelCount = document.getElementById('modelCount');
+
+  // Reset model area
+  fetchedModels = [];
+  modelSelect.innerHTML = '<option value="">输入模型名或点击获取...</option>';
+  modelSelect.style.display = '';
+  modelInput.style.display = 'none';
+  modelFilter.style.display = 'none';
+  modelCount.textContent = '';
+  modelCount.style.color = '';
+
+  if (editId) {
+    const p = providers.find(x => x.id === editId);
+    if (!p) return;
+    document.getElementById('modalTitle').textContent = '编辑 API 服务商';
+    document.getElementById('pName').value = p.name;
+    document.getElementById('pType').value = p.type;
+    document.getElementById('pUrl').value = p.baseUrl;
+    document.getElementById('pKey').value = p.apiKey;
+    modelInput.value = p.model;
+    // Put the model in the select as a single option
+    if (p.model) {
+      modelSelect.innerHTML = `<option value="">-- 选择模型 --</option><option value="${esc(p.model)}" selected>${esc(p.model)}</option>`;
+    }
+    document.getElementById('pCustomPath').value = p.customPath || '';
+    document.getElementById('pCustomBody').value = p.customBody || '';
+    document.getElementById('pCustomResp').value = p.customResponsePath || '';
+  } else {
+    document.getElementById('modalTitle').textContent = '添加 API 服务商';
+    document.getElementById('pName').value = '';
+    document.getElementById('pType').value = 'openai-images';
+    document.getElementById('pUrl').value = '';
+    document.getElementById('pKey').value = '';
+    modelInput.value = '';
+    document.getElementById('pCustomPath').value = '';
+    document.getElementById('pCustomBody').value = '';
+    document.getElementById('pCustomResp').value = '';
+  }
+  onModalTypeChange();
+}
+
+function hideProviderModal() {
+  document.getElementById('providerModal').style.display = 'none';
+}
+
+function onModalTypeChange() {
+  const type = document.getElementById('pType').value;
+  document.getElementById('fieldCustomPath').style.display = (type === 'custom' || type === 'openai-compatible') ? '' : 'none';
+  document.getElementById('fieldCustomBody').style.display = type === 'custom' ? '' : 'none';
+  document.getElementById('fieldCustomResp').style.display = type === 'custom' ? '' : 'none';
+
+  const urlHint = document.getElementById('pUrlHint');
+  const modelHint = document.getElementById('pModelHint');
+  if (type === 'openai-images') {
+    urlHint.textContent = 'OpenAI: https://api.openai.com';
+    modelHint.textContent = '例如：gpt-image-1, dall-e-3';
+  } else if (type === 'openai-compatible') {
+    urlHint.textContent = '例如：https://api.siliconflow.cn, https://api.deepseek.com';
+    modelHint.textContent = '填入该平台支持的图片模型名';
+  } else if (type === 'gemini') {
+    urlHint.textContent = 'Gemini: https://generativelanguage.googleapis.com';
+    modelHint.textContent = '例如：gemini-2.0-flash-exp';
+  } else {
+    urlHint.textContent = '填写你的 API 服务地址';
+    modelHint.textContent = '模型名称（可选）';
+  }
+}
+
+// ===== Fetch Models from API =====
+async function fetchModels() {
+  const type = document.getElementById('pType').value;
+  const baseUrl = document.getElementById('pUrl').value.trim().replace(/\/+$/, '');
+  const apiKey = document.getElementById('pKey').value.trim();
+
+  if (!baseUrl || !apiKey) {
+    showToast('请先填写 API URL 和 API Key', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('fetchModelsBtn');
+  const modelSelect = document.getElementById('pModelSelect');
+  const modelFilter = document.getElementById('pModelFilter');
+  const modelCount = document.getElementById('modelCount');
+  const modelHint = document.getElementById('pModelHint');
+
+  btn.disabled = true;
+  btn.textContent = '获取中...';
+  btn.classList.add('loading');
+  fetchedModels = [];
+
+  try {
+    let models = [];
+
+    if (type === 'gemini') {
+      // Gemini: list models endpoint
+      const url = `${baseUrl}/v1beta/models?key=${apiKey}`;
+      const resp = await fetch(url);
+      if (!resp.ok) {
+        const errText = await resp.text();
+        throw new Error(`Gemini API错误 (${resp.status}): ${errText.substring(0, 200)}`);
+      }
+      const data = await resp.json();
+      const modelList = data.models || [];
+      models = modelList.map(m => ({
+        id: m.name?.replace('models/', '') || m.name,
+        name: m.displayName || m.name?.replace('models/', '') || m.name,
+        description: m.description || '',
+        supportedMethods: m.supportedGenerationMethods || []
+      })).filter(m => {
+        // Filter to image-capable models
+        const methods = m.supportedMethods;
+        return methods.includes('generateContent') || methods.includes('generateImages');
+      });
+    } else {
+      // OpenAI and compatible: /v1/models
+      const url = baseUrl + '/v1/models';
+      const resp = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${apiKey}` }
+      });
+      if (!resp.ok) {
+        const errText = await resp.text();
+        throw new Error(`API错误 (${resp.status}): ${errText.substring(0, 200)}`);
+      }
+      const data = await resp.json();
+      const modelList = data.data || [];
+      models = modelList.map(m => ({
+        id: m.id,
+        name: m.id,
+        owned: m.owned_by || '',
+        created: m.created
+      }));
+    }
+
+    fetchedModels = models;
+
+    if (models.length === 0) {
+      modelCount.textContent = '未找到可用模型，请手动输入';
+      modelCount.style.color = 'var(--warn)';
+      modelSelect.style.display = 'none';
+      document.getElementById('pModel').style.display = '';
+      modelFilter.style.display = 'none';
+      return;
+    }
+
+    // Sort models — image-related ones first
+    // For openai-images type, ALL models are image models (dedicated image API)
+    const isDedicatedImageAPI = (type === 'openai-images');
+    const imageKeywords = ['image', 'dall', 'gpt-image', 'gpt-4o', 'gpt-4o-mini', 'flux', 'stable', 'sd3', 'midjourney', 'playground', 'ideogram', 'recraft', 'imagen', 'banana', 'nano', 'draw', 'paint', 'art', 'picture', 'photo', 'diffusion', 'kolors', 'wanx', 'sd', 'cogview', 'clip'];
+    function isImageModel(m) {
+      if (isDedicatedImageAPI) return true; // Dedicated image API → all models are image models
+      return imageKeywords.some(k => m.name.toLowerCase().includes(k) || m.id.toLowerCase().includes(k));
+    }
+    models.sort((a, b) => {
+      const aIsImage = isImageModel(a);
+      const bIsImage = isImageModel(b);
+      if (aIsImage && !bIsImage) return -1;
+      if (!aIsImage && bIsImage) return 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    // Populate the select dropdown
+    const currentModel = document.getElementById('pModel').value || modelSelect.value;
+    modelSelect.innerHTML = '<option value="">-- 选择模型 --</option>';
+
+    // Add image models group
+    const imageModels = models.filter(m => isImageModel(m));
+    const otherModels = models.filter(m => !isImageModel(m));
+
+    if (imageModels.length > 0) {
+      const optgroup = document.createElement('optgroup');
+      optgroup.label = isDedicatedImageAPI ? `全部模型 (${imageModels.length})` : `图片模型 (${imageModels.length})`;
+      imageModels.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = m.name + (m.owned ? ` (${m.owned})` : '');
+        if (m.id === currentModel) opt.selected = true;
+        optgroup.appendChild(opt);
+      });
+      modelSelect.appendChild(optgroup);
+    }
+
+    if (otherModels.length > 0) {
+      const optgroup = document.createElement('optgroup');
+      optgroup.label = `其他模型 (${otherModels.length})`;
+      otherModels.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = m.name + (m.owned ? ` (${m.owned})` : '');
+        if (m.id === currentModel) opt.selected = true;
+        optgroup.appendChild(opt);
+      });
+      modelSelect.appendChild(optgroup);
+    }
+
+    // Show select, hide text input
+    modelSelect.style.display = '';
+    document.getElementById('pModel').style.display = 'none';
+    modelFilter.style.display = '';
+    const label = isDedicatedImageAPI ? `获取到 ${models.length} 个图片模型` : `找到 ${models.length} 个模型（其中 ${imageModels.length} 个图片模型）`;
+    modelCount.textContent = label;
+    modelCount.style.color = 'var(--success)';
+    modelHint.textContent = '已从 API 拉取模型列表，也可手动输入';
+
+    showToast(`获取到 ${models.length} 个模型`, 'success');
+
+  } catch (err) {
+    console.error('Fetch models error:', err);
+    modelCount.textContent = '获取失败: ' + err.message.substring(0, 80);
+    modelCount.style.color = 'var(--danger)';
+    modelSelect.style.display = 'none';
+    document.getElementById('pModel').style.display = '';
+    modelFilter.style.display = 'none';
+    showToast('获取模型列表失败', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '获取模型';
+    btn.classList.remove('loading');
+  }
+}
+
+function onModelSelectChange() {
+  const sel = document.getElementById('pModelSelect');
+  const input = document.getElementById('pModel');
+  input.value = sel.value;
+}
+
+function filterModels() {
+  const filter = document.getElementById('pModelFilter').value.toLowerCase().trim();
+  const sel = document.getElementById('pModelSelect');
+  const options = sel.querySelectorAll('option[value]');
+  let visibleCount = 0;
+
+  options.forEach(opt => {
+    if (!opt.value) return; // skip placeholder
+    const match = !filter || opt.value.toLowerCase().includes(filter) || opt.textContent.toLowerCase().includes(filter);
+    opt.style.display = match ? '' : 'none';
+    if (match) visibleCount++;
+  });
+
+  const modelCount = document.getElementById('modelCount');
+  const type = document.getElementById('pType').value;
+  const isDedicatedImageAPI = (type === 'openai-images');
+
+  if (filter) {
+    modelCount.textContent = `筛选到 ${visibleCount} 个模型（共 ${fetchedModels.length} 个）`;
+  } else if (isDedicatedImageAPI) {
+    modelCount.textContent = `获取到 ${fetchedModels.length} 个图片模型`;
+  } else {
+    const imageKeywords = ['image', 'dall', 'gpt-image', 'gpt-4o', 'flux', 'stable', 'sd3', 'midjourney', 'playground', 'ideogram', 'recraft', 'imagen', 'banana', 'nano', 'draw', 'paint', 'art', 'picture', 'photo', 'diffusion', 'kolors', 'wanx', 'sd', 'cogview', 'clip'];
+    const imageCount = fetchedModels.filter(m => imageKeywords.some(k => m.name.toLowerCase().includes(k) || m.id.toLowerCase().includes(k))).length;
+    modelCount.textContent = `找到 ${fetchedModels.length} 个模型（其中 ${imageCount} 个图片模型）`;
+  }
+}
+
+function saveProvider() {
+  const id = document.getElementById('editProviderId').value || 'p_' + Date.now();
+  const name = document.getElementById('pName').value.trim();
+  const type = document.getElementById('pType').value;
+  const baseUrl = document.getElementById('pUrl').value.trim().replace(/\/+$/, '');
+  const apiKey = document.getElementById('pKey').value.trim();
+  // Model: prefer select value, fallback to input
+  const modelSelect = document.getElementById('pModelSelect');
+  const modelInput = document.getElementById('pModel');
+  const model = modelSelect.style.display !== 'none' ? (modelSelect.value || modelInput.value) : modelInput.value;
+  const modelTrimmed = model.trim();
+  const customPath = document.getElementById('pCustomPath').value.trim();
+  const customBody = document.getElementById('pCustomBody').value.trim();
+  const customResponsePath = document.getElementById('pCustomResp').value.trim();
+
+  if (!name || !baseUrl || !apiKey) {
+    showToast('请填写名称、URL 和 API Key', 'error');
+    return;
+  }
+
+  const data = { id, name, type, baseUrl, apiKey, model: modelTrimmed, customPath, customBody, customResponsePath };
+  const existing = providers.find(x => x.id === id);
+  if (existing) Object.assign(existing, data);
+  else {
+    providers.push(data);
+    if (!activeProviderId) { activeProviderId = id; localStorage.setItem('if2_active', id); }
+  }
+
+  localStorage.setItem('if2_providers', JSON.stringify(providers));
+  renderProviderSelect();
+  hideProviderModal();
+  showToast('服务商已保存', 'success');
+}
+
+// ===== Reference Image =====
+function triggerUpload() { document.getElementById('fileInput').click(); }
+
+function onFileSelected(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const base64 = ev.target.result.split(',')[1];
+    refImage = { type: 'base64', value: base64, mimeType: file.type };
+    renderRefImage();
+  };
+  reader.readAsDataURL(file);
+}
+
+function onDragOver(e) { e.preventDefault(); e.stopPropagation(); document.getElementById('uploadZone').classList.add('dragover'); }
+function onDragLeave(e) { e.preventDefault(); e.stopPropagation(); document.getElementById('uploadZone').classList.remove('dragover'); }
+function onDrop(e) {
+  e.preventDefault(); e.stopPropagation();
+  document.getElementById('uploadZone').classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (!file || !file.type.startsWith('image/')) { showToast('请拖入图片文件', 'error'); return; }
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const base64 = ev.target.result.split(',')[1];
+    refImage = { type: 'base64', value: base64, mimeType: file.type };
+    renderRefImage();
+  };
+  reader.readAsDataURL(file);
+}
+
+function loadRefFromUrl() {
+  const url = document.getElementById('imageUrlInput').value.trim();
+  if (!url) { showToast('请输入图片URL', 'error'); return; }
+  refImage = { type: 'url', value: url, mimeType: '' };
+  renderRefImage();
+  showToast('参考图已设置（URL模式）', 'success');
+}
+
+function clearRefImage() {
+  refImage = null;
+  document.getElementById('fileInput').value = '';
+  renderRefImage();
+}
+
+function renderRefImage() {
+  const zone = document.getElementById('uploadZone');
+  const placeholder = document.getElementById('uploadPlaceholder');
+  const preview = document.getElementById('uploadPreview');
+  const previewImg = document.getElementById('previewImg');
+  const clearBtn = document.getElementById('clearRefBtn');
+
+  if (refImage) {
+    zone.classList.add('has-image');
+    placeholder.style.display = 'none';
+    preview.style.display = '';
+    clearBtn.style.display = '';
+    if (refImage.type === 'base64') {
+      previewImg.src = `data:${refImage.mimeType || 'image/png'};base64,${refImage.value}`;
+    } else {
+      previewImg.src = refImage.value;
+    }
+  } else {
+    zone.classList.remove('has-image');
+    placeholder.style.display = '';
+    preview.style.display = 'none';
+    clearBtn.style.display = 'none';
+    previewImg.src = '';
+  }
+  updateRefChips();
+}
+
+function updateRefChips() {
+  const container = document.getElementById('refChips');
+  if (refImage) {
+    const src = refImage.type === 'base64'
+      ? `data:${refImage.mimeType || 'image/png'};base64,${refImage.value.substring(0, 100)}`
+      : refImage.value;
+    container.innerHTML = `
+      <div class="ref-chip">
+        <img src="${refImage.type === 'base64' ? `data:${refImage.mimeType || 'image/png'};base64,${refImage.value}` : refImage.value}" onerror="this.style.display='none'">
+        <span>参考图</span>
+        <span class="ref-chip-remove" onclick="clearRefImage()">✕</span>
+      </div>
+    `;
+  } else {
+    container.innerHTML = '';
+  }
+  // Toggle ref status indicator in prompt bar
+  const refStatus = document.getElementById('refStatus');
+  if (refStatus) refStatus.style.display = refImage ? '' : 'none';
+}
+
+// ===== Templates =====
+function useTemplate(text) {
+  const input = document.getElementById('promptInput');
+  input.value = text + '，';
+  input.focus();
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 160) + 'px';
+}
+
+// ===== Image Generation =====
+async function generate() {
+  const prompt = document.getElementById('promptInput').value.trim();
+  if (!prompt && !refImage) { showToast('请输入提示词或上传参考图', 'error'); return; }
+
+  const provider = providers.find(x => x.id === activeProviderId);
+  if (!provider) { showToast('请先选择一个API服务商', 'error'); return; }
+
+  const size = document.getElementById('sizeSelect').value;
+  const quality = document.getElementById('qualitySelect').value;
+  const n = parseInt(document.getElementById('numImages').value) || 1;
+  const responseFormat = document.getElementById('responseFormat').value;
+
+  // Auto-open log panel
+  const logPanel = document.getElementById('logPanel');
+  if (!logPanel.classList.contains('open')) toggleLogPanel();
+
+  addLog('info', `开始生成 — <strong>${esc(provider.name)}</strong> / ${esc(provider.model || '默认')} · 尺寸 ${size === 'auto' ? '自动' : size} · 数量 ${n}`);
+  if (refImage) addLog('info', '📷 参考图已附加 (图生图模式)');
+  addLog('req', `提示词: ${esc(prompt || '(无文字描述)')}`);
+
+  abortController = new AbortController();
+  const timeoutSec = parseInt(document.getElementById('timeoutSeconds').value) || 180;
+  abortTimeout = setTimeout(() => {
+    if (abortController) {
+      addLog('warn', `请求超时 (${timeoutSec}s) → 自动取消`);
+      abortController.abort();
+    }
+  }, timeoutSec * 1000);
+  showProgress(`正在通过 <strong>${esc(provider.name)}</strong> 生成图片... (${timeoutSec}s超时)`);
+
+  try {
+    let images = [];
+
+    switch (provider.type) {
+      case 'openai-images':
+        images = await callOpenAIImages(provider, prompt, size, quality, n, responseFormat);
+        break;
+      case 'openai-compatible':
+        images = await callOpenAICompatible(provider, prompt, size, quality, n, responseFormat);
+        break;
+      case 'gemini':
+        images = await callGemini(provider, prompt, size, n);
+        break;
+      case 'custom':
+        images = await callCustom(provider, prompt, size, quality, n);
+        break;
+      default:
+        throw new Error('未知的API类型: ' + provider.type);
+    }
+
+    const elapsed = ((Date.now() - progressStart) / 1000).toFixed(1);
+    addLog('ok', `✅ 生成成功 — ${images.length} 张图片 · 耗时 ${elapsed}s`);
+
+    // Convert URL-type images to base64 for persistent storage
+    const processedImages = await Promise.all(images.map(async (imgData, idx) => {
+      if (imgData.type === 'url' && imgData.value.startsWith('http')) {
+        addLog('info', `图片 ${idx + 1}: URL → 转换为 Base64 以便持久保存`);
+        try {
+          const imgResp = await fetch(imgData.value, { mode: 'cors' });
+          if (imgResp.ok) {
+            const blob = await imgResp.blob();
+            const base64 = await new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result.split(',')[1]);
+              reader.readAsDataURL(blob);
+            });
+            addLog('ok', `图片 ${idx + 1}: 转换成功 (${(blob.size / 1024).toFixed(1)} KB)`);
+            return { type: 'base64', value: base64, mimeType: blob.type || 'image/png' };
+          }
+        } catch (e) {
+          addLog('warn', `图片 ${idx + 1}: CORS 阻止转换，保留原始 URL`);
+        }
+        return imgData; // Keep URL if conversion fails
+      }
+      return imgData;
+    }));
+
+    const timestamp = new Date().toISOString();
+    processedImages.forEach(imgData => {
+      history.unshift({
+        id: 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+        prompt: prompt || '(图生图)',
+        provider: provider.name,
+        providerType: provider.type,
+        model: provider.model,
+        size,
+        quality,
+        timestamp,
+        hasRefImage: !!refImage,
+        data: imgData
+      });
+    });
+
+    if (history.length > 200) history = history.slice(0, 200);
+    try { localStorage.setItem('if2_history', JSON.stringify(history)); } catch (e) { /* storage full */ }
+
+    renderGallery();
+    showToast(`成功生成 ${images.length} 张图片`, 'success');
+
+  } catch (err) {
+    const elapsed = ((Date.now() - progressStart) / 1000).toFixed(1);
+    if (err.name === 'AbortError') {
+      // Distinguish between user cancel and auto timeout
+      if (abortTimeout && !abortController) {
+        addLog('warn', `⏹ 请求超时自动取消 · 耗时 ${elapsed}s`);
+        showToast('请求超时，可尝试增加超时时间或换模型', 'error');
+      } else {
+        addLog('warn', `⏹ 用户手动取消 · 耗时 ${elapsed}s`);
+        showToast('已取消生成', 'error');
+      }
+    } else if (err.message === 'Failed to fetch' || err.type === 'TypeError') {
+      addLog('err', `网络错误 (${elapsed}s): 服务器无响应或连接中断`);
+      showToast('网络错误: 服务器无响应，可能超时或服务不稳定', 'error');
+    } else {
+      addLog('err', `生成失败 (${elapsed}s): ${esc(err.message)}`);
+      console.error(err);
+      showToast('生成失败: ' + err.message, 'error');
+    }
+  } finally {
+    hideProgress();
+    abortController = null;
+    if (abortTimeout) { clearTimeout(abortTimeout); abortTimeout = null; }
+  }
+}
+
+// ===== Helper: Get ref image data URL =====
+function getRefImageUrl() {
+  if (!refImage) return null;
+  if (refImage.type === 'base64') {
+    return `data:${refImage.mimeType || 'image/png'};base64,${refImage.value}`;
+  }
+  return refImage.value;
+}
+
+// --- OpenAI Images API ---
+// Supports the `image` parameter per OpenAI-compatible image APIs
+// Docs: https://docs.right.codes/docs/rc_extension/draw/images-generations.html
+//   image: array of base64 data URIs or URLs, e.g. ["data:image/png;base64,..."]
+async function callOpenAIImages(provider, prompt, size, quality, n, responseFormat) {
+  const url = provider.baseUrl + '/v1/images/generations';
+
+  const body = {
+    model: provider.model || 'gpt-image-1',
+    prompt,
+    n,
+    response_format: responseFormat || 'url'
+  };
+  if (size !== 'auto') body.size = size;
+  if (quality !== 'auto') body.quality = quality;
+
+  // Add reference image via the `image` parameter (array of data URIs)
+  if (refImage) {
+    const imageUrl = getRefImageUrl();
+    // image field must be an array — data URI or URL strings
+    body.image = [imageUrl];
+    addLog('info', `📷 参考图已添加到 image 参数 (数组格式)`);
+  }
+
+  addLog('req', `POST <span class="url">${esc(url)}</span>`);
+  addLog('req', `Body: model=${esc(body.model)}${body.size ? ' · size='+size : ' · size=自动'} · n=${n} · prompt=${esc(prompt.substring(0,60))}${refImage ? ' · image=[1张参考图]' : ''}`);
+
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${provider.apiKey}` },
+    body: JSON.stringify(body),
+    signal: abortController.signal
+  });
+
+  addLog('res', `HTTP ${resp.status} ${resp.statusText}`);
+
+  // If the `image` parameter is not supported, try fallback approaches
+  if (!resp.ok && refImage) {
+    const errBody = await resp.text();
+    addLog('err', `响应: ${esc(errBody.substring(0, 300))}`);
+
+    // Only fall back to chat completions if it's a parameter schema error
+    // (422 = unprocessable entity, or 400 with specific parameter error messages)
+    // Do NOT fall back for upstream errors like "excessive system load"
+    const isParamError = resp.status === 422 ||
+      (resp.status === 400 && /unmarshal|parameter|field|schema|invalid.*image/i.test(errBody));
+    if (isParamError) {
+      addLog('warn', 'image 参数不支持 → 回退到 chat completions 传图');
+      try {
+        return await callChatWithImage(provider, prompt, size, quality, n, responseFormat);
+      } catch (chatErr) {
+        throw new Error(`API错误 (${resp.status}): ${errBody}\n回退也失败: ${chatErr.message}`);
+      }
+    }
+    throw new Error(`API错误 (${resp.status}): ${errBody}`);
+  }
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    addLog('err', `响应: ${esc(errText.substring(0, 500))}`);
+    throw new Error(`API错误 (${resp.status}): ${errText}`);
+  }
+
+  const data = await resp.json();
+  addLog('res', `返回 ${data.data?.length || 0} 张图片`);
+  return (data.data || []).map(item => {
+    if (item.b64_json) return { type: 'base64', value: item.b64_json };
+    if (item.url) return { type: 'url', value: item.url };
+    return null;
+  }).filter(Boolean);
+}
+
+// --- Chat Completions with image (fallback for APIs that don't support `image` parameter) ---
+async function callChatWithImage(provider, prompt, size, quality, n, responseFormat) {
+  const url = provider.baseUrl + '/v1/chat/completions';
+
+  const content = [];
+  if (prompt) content.push({ type: 'text', text: prompt });
+  if (refImage) {
+    const imageUrl = getRefImageUrl();
+    content.push({ type: 'image_url', image_url: { url: imageUrl, detail: 'high' } });
+  }
+
+  const body = {
+    model: provider.model || 'gpt-image-1',
+    messages: [{ role: 'user', content }],
+    max_tokens: 4096
+  };
+
+  addLog('req', `POST <span class="url">${esc(url)}</span> (Chat Completions · 图生图)`);
+
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${provider.apiKey}` },
+    body: JSON.stringify(body),
+    signal: abortController.signal
+  });
+
+  addLog('res', `HTTP ${resp.status} ${resp.statusText}`);
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    addLog('err', `chat 响应: ${esc(errText.substring(0, 400))}`);
+    throw new Error(`Chat API错误 (${resp.status}): ${errText}`);
+  }
+
+  const data = await resp.json();
+  const images = [];
+
+  const choices = data.choices || [];
+  choices.forEach(choice => {
+    const msgContent = choice.message?.content;
+    if (typeof msgContent === 'string') {
+      // Parse data URI images
+      const base64Match = msgContent.match(/data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/);
+      if (base64Match) {
+        images.push({ type: 'base64', value: base64Match[0].split(',')[1] });
+      }
+      // Parse markdown image links: ![alt](url)
+      const mdImgMatches = msgContent.matchAll(/!\[.*?\]\((https?:\/\/[^\s)]+)\)/g);
+      for (const m of mdImgMatches) {
+        images.push({ type: 'url', value: m[1] });
+      }
+      // Parse plain URLs ending with image extensions
+      const plainUrlMatches = msgContent.matchAll(/(?<!\()(https?:\/\/[^\s"'<>]+\.(?:png|jpg|jpeg|webp|gif|bmp)(?:\?[^\s"'<>]*)?)/gi);
+      for (const m of plainUrlMatches) {
+        if (!images.some(i => i.value === m[1])) {
+          images.push({ type: 'url', value: m[1] });
+        }
+      }
+    } else if (Array.isArray(msgContent)) {
+      msgContent.forEach(part => {
+        if (part.type === 'image_url' && part.image_url?.url) {
+          const u = part.image_url.url;
+          if (u.startsWith('data:')) {
+            images.push({ type: 'base64', value: u.split(',')[1] });
+          } else {
+            images.push({ type: 'url', value: u });
+          }
+        }
+      });
+    }
+  });
+
+  if (images.length === 0) {
+    addLog('err', 'Chat 响应中未找到图片数据: ' + esc(JSON.stringify(data).substring(0, 500)));
+    throw new Error('Chat API 未返回图片。响应: ' + JSON.stringify(data).substring(0, 500));
+  }
+
+  addLog('res', `chat 返回 ${images.length} 张图片`);
+  return images;
+}
+
+// --- OpenAI Compatible ---
+async function callOpenAICompatible(provider, prompt, size, quality, n, responseFormat) {
+  const path = provider.customPath || '/v1/images/generations';
+  const url = provider.baseUrl + path;
+  const body = {
+    model: provider.model || 'gpt-image-1',
+    prompt,
+    n,
+    response_format: responseFormat || 'url'
+  };
+  if (size !== 'auto') body.size = size;
+  if (quality !== 'auto') body.quality = quality;
+
+  // Add reference image via `image` parameter (same as OpenAI Images API)
+  if (refImage) {
+    const imageUrl = getRefImageUrl();
+    body.image = [imageUrl];
+    addLog('info', `📷 参考图已添加到 image 参数 (数组格式)`);
+  }
+
+  addLog('req', `POST <span class="url">${esc(url)}</span>`);
+  addLog('req', `Body: model=${esc(body.model)}${body.size ? ' · size='+size : ' · size=自动'} · n=${n}${refImage ? ' · image=[1张参考图]' : ''}`);
+
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${provider.apiKey}` },
+    body: JSON.stringify(body),
+    signal: abortController.signal
+  });
+
+  addLog('res', `HTTP ${resp.status} ${resp.statusText}`);
+
+  // If image parameter not supported, fallback to chat
+  if (!resp.ok && refImage) {
+    const errBody = await resp.text();
+    addLog('err', `响应: ${esc(errBody.substring(0, 300))}`);
+    // Only fall back for parameter schema errors, not upstream errors
+    const isParamError = resp.status === 422 ||
+      (resp.status === 400 && /unmarshal|parameter|field|schema|invalid.*image/i.test(errBody));
+    if (isParamError) {
+      addLog('warn', 'image 参数不支持 → 回退到 chat completions 传图');
+      try {
+        return await callChatWithImage(provider, prompt, size, quality, n, responseFormat);
+      } catch (chatErr) {
+        throw new Error(`API错误 (${resp.status}): ${errBody}\n回退也失败: ${chatErr.message}`);
+      }
+    }
+    throw new Error(`API错误 (${resp.status}): ${errBody}`);
+  }
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    addLog('err', `响应: ${esc(errText.substring(0, 500))}`);
+    throw new Error(`API错误 (${resp.status}): ${errText}`);
+  }
+
+  const data = await resp.json();
+  addLog('res', `返回 ${data.data?.length || 0} 张图片`);
+  return (data.data || []).map(item => {
+    if (item.b64_json) return { type: 'base64', value: item.b64_json };
+    if (item.url) return { type: 'url', value: item.url };
+    return null;
+  }).filter(Boolean);
+}
+
+// --- Gemini ---
+async function callGemini(provider, prompt, size, n) {
+  const fullUrl = `${provider.baseUrl}/v1beta/models/${provider.model || 'gemini-2.0-flash-exp'}:generateContent?key=${provider.apiKey}`;
+  const logUrl = `${provider.baseUrl}/v1beta/models/${provider.model || 'gemini-2.0-flash-exp'}:generateContent?key=${provider.apiKey.substring(0,8)}...`;
+
+  const parts = [];
+  if (prompt) parts.push({ text: prompt });
+
+  // Add reference image if provided
+  if (refImage) {
+    if (refImage.type === 'base64') {
+      parts.push({
+        inlineData: {
+          mimeType: refImage.mimeType || 'image/png',
+          data: refImage.value
+        }
+      });
+      addLog('info', `📷 参考图已作为 inlineData 附加 (${refImage.mimeType || 'image/png'})`);
+    } else {
+      // For URL-based images, we need to fetch and convert
+      try {
+        const imgResp = await fetch(refImage.value);
+        const blob = await imgResp.blob();
+        const reader = new FileReader();
+        const base64 = await new Promise((resolve) => {
+          reader.onload = () => resolve(reader.result.split(',')[1]);
+          reader.readAsDataURL(blob);
+        });
+        parts.push({
+          inlineData: {
+            mimeType: blob.type || 'image/png',
+            data: base64
+          }
+        });
+        addLog('info', `📷 参考图已从URL加载并转为 inlineData`);
+      } catch (e) {
+        addLog('warn', '参考图URL加载失败: ' + esc(e.message));
+      }
+    }
+  }
+
+  const body = {
+    contents: [{ parts }],
+    generationConfig: { responseModalities: ["TEXT", "IMAGE"] }
+  };
+
+  addLog('req', `POST <span class="url">${esc(logUrl)}</span>`);
+  addLog('req', `Parts: ${parts.length} 项 (text=${!!prompt}, image=${!!refImage})`);
+
+  const resp = await fetch(fullUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: abortController.signal
+  });
+
+  addLog('res', `HTTP ${resp.status} ${resp.statusText}`);
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    addLog('err', `Gemini 响应: ${esc(errText.substring(0, 500))}`);
+    throw new Error(`Gemini API错误 (${resp.status}): ${errText}`);
+  }
+
+  const data = await resp.json();
+  const images = [];
+  const candidates = data.candidates || [];
+  candidates.forEach(candidate => {
+    const cParts = candidate.content?.parts || [];
+    cParts.forEach(part => {
+      if (part.inlineData) {
+        images.push({ type: 'base64', value: part.inlineData.data, mimeType: part.inlineData.mimeType });
+      }
+    });
+  });
+
+  if (images.length === 0) {
+    addLog('err', 'Gemini 未返回图片: ' + esc(JSON.stringify(data).substring(0, 500)));
+    throw new Error('Gemini 未返回图片。响应: ' + JSON.stringify(data).substring(0, 500));
+  }
+
+  addLog('res', `Gemini 返回 ${images.length} 张图片`);
+  return images;
+}
+
+// --- Custom ---
+async function callCustom(provider, prompt, size, quality, n) {
+  const path = provider.customPath || '/v1/images/generations';
+  const url = provider.baseUrl + path;
+
+  let bodyStr = provider.customBody || '{"prompt": "{{PROMPT}}", "size": "{{SIZE}}"}';
+  bodyStr = bodyStr
+    .replace(/\{\{PROMPT\}\}/g, prompt.replace(/"/g, '\\"'))
+    .replace(/\{\{SIZE\}\}/g, size === 'auto' ? '' : size)
+    .replace(/\{\{N\}\}/g, n)
+    .replace(/\{\{QUALITY\}\}/g, quality)
+    .replace(/\{\{IMAGE_BASE64\}\}/g, refImage ? refImage.value : '');
+
+  addLog('req', `POST <span class="url">${esc(url)}</span> (自定义)`);
+  addLog('req', `Body: ${esc(bodyStr.substring(0, 200))}${bodyStr.length > 200 ? '...' : ''}`);
+
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${provider.apiKey}` },
+    body: bodyStr,
+    signal: abortController.signal
+  });
+
+  addLog('res', `HTTP ${resp.status} ${resp.statusText}`);
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    addLog('err', `自定义API响应: ${esc(errText.substring(0, 500))}`);
+    throw new Error(`API错误 (${resp.status}): ${errText}`);
+  }
+
+  const data = await resp.json();
+  const respPath = provider.customResponsePath || 'data.0.b64_json';
+  const imageData = getNestedValue(data, respPath);
+
+  if (!imageData) {
+    addLog('err', `路径 "${esc(respPath)}" 未找到图片数据: ${esc(JSON.stringify(data).substring(0, 500))}`);
+    throw new Error('未能从响应中提取图片数据。路径: ' + respPath);
+  }
+
+  if (imageData.startsWith && imageData.startsWith('http')) {
+    addLog('res', '返回图片URL');
+    return [{ type: 'url', value: imageData }];
+  }
+  addLog('res', '返回Base64图片数据');
+  return [{ type: 'base64', value: imageData }];
+}
+
+// ===== Gallery =====
+function renderGallery() {
+  const empty = document.getElementById('emptyState');
+  const grid = document.getElementById('galleryGrid');
+
+  if (history.length === 0) {
+    empty.style.display = '';
+    grid.style.display = 'none';
+    return;
+  }
+  empty.style.display = 'none';
+  grid.style.display = '';
+
+  grid.innerHTML = history.slice(0, 20).map(item => renderCard(item)).join('');
+}
+
+function renderGalleryFull() {
+  const grid = document.getElementById('galleryGrid2');
+  const count = document.getElementById('historyCount');
+  count.textContent = history.length;
+  grid.innerHTML = history.map(item => renderCard(item)).join('');
+}
+
+function renderCard(item) {
+  const rawSrc = item.data.type === 'base64'
+    ? `data:${item.data.mimeType || 'image/png'};base64,${item.data.value}`
+    : item.data.value;
+  // Use blob URL so right-click "Open in new tab" works
+  const src = toBlobUrl(rawSrc);
+  const date = new Date(item.timestamp);
+  const timeStr = `${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2,'0')}`;
+  const refBadge = item.hasRefImage ? '<span class="gallery-ref-badge">[参考图]</span>' : '';
+  // Use data-index for event delegation instead of inline src for safety
+  const cardId = item.id;
+
+  return `
+    <div class="gallery-card" data-id="${esc(cardId)}">
+      <div class="gallery-card-img">
+        <img src="${src}" loading="lazy" onclick="openLightboxById('${esc(cardId)}')" onerror="this.style.display='none'">
+        <div class="gallery-card-actions">
+          <button class="btn btn-primary btn-sm" onclick="useAsRefImage('${esc(cardId)}')">用作参考图</button>
+          <button class="btn btn-ghost btn-sm" onclick="downloadById('${esc(cardId)}')">下载</button>
+          <button class="btn btn-ghost btn-sm" onclick="reusePrompt('${esc(item.prompt)}')">复用</button>
+          <button class="btn btn-ghost btn-sm" onclick="deleteImage('${esc(cardId)}')">删除</button>
+        </div>
+      </div>
+      <div class="gallery-card-body">
+        <div class="gallery-card-prompt">${esc(item.prompt)}${refBadge}</div>
+        <div class="gallery-card-meta">
+          <span class="gallery-badge">${esc(item.provider)} / ${esc(item.model || '')}</span>
+          <span class="gallery-time">${timeStr}</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Convert data URI to blob URL so browser right-click "Open in new tab" works
+const blobUrlCache = {};
+function toBlobUrl(src) {
+  if (!src.startsWith('data:')) return src; // already a real URL
+  if (blobUrlCache[src]) return blobUrlCache[src];
+  try {
+    const [meta, base64] = src.split(',');
+    const mime = meta.match(/:(.*?);/)[1];
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const blobUrl = URL.createObjectURL(new Blob([bytes], { type: mime }));
+    blobUrlCache[src] = blobUrl;
+    return blobUrl;
+  } catch (e) { return src; }
+}
+
+function getImageSrcById(id) {
+  const item = history.find(x => x.id === id);
+  if (!item) return '';
+  const rawSrc = item.data.type === 'base64'
+    ? `data:${item.data.mimeType || 'image/png'};base64,${item.data.value}`
+    : item.data.value;
+  return toBlobUrl(rawSrc);
+}
+
+function openLightboxById(id) {
+  const src = getImageSrcById(id);
+  if (src) openLightbox(src);
+}
+
+async function downloadById(id) {
+  const src = getImageSrcById(id);
+  const item = history.find(x => x.id === id);
+  if (src) await downloadImage(src, item?.prompt?.substring(0, 20));
+}
+
+function switchToGenerateTab() {
+  document.querySelectorAll('.header-nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.header-nav-btn[data-tab="generate"]').classList.add('active');
+  document.getElementById('tabGenerate').style.display = '';
+  document.getElementById('tabGallery').style.display = 'none';
+}
+
+function reusePrompt(p) {
+  document.getElementById('promptInput').value = p;
+  document.getElementById('promptInput').focus();
+  switchToGenerateTab();
+  showToast('提示词已填入', 'success');
+}
+
+function useAsRefImage(id) {
+  const item = history.find(x => x.id === id);
+  if (!item) return;
+  // Set as reference image using the stored base64 data
+  if (item.data.type === 'base64') {
+    refImage = { type: 'base64', value: item.data.value, mimeType: item.data.mimeType || 'image/png' };
+  } else if (item.data.value) {
+    refImage = { type: 'url', value: item.data.value, mimeType: '' };
+  } else {
+    showToast('无法使用该图片作为参考图', 'error');
+    return;
+  }
+  renderRefImage();
+  switchToGenerateTab();
+  showToast('已设为参考图，可直接生成', 'success');
+}
+
+function deleteImage(id) {
+  // Revoke blob URL to free memory
+  const item = history.find(x => x.id === id);
+  if (item) {
+    const rawKey = item.data.type === 'base64'
+      ? `data:${item.data.mimeType || 'image/png'};base64,${item.data.value}`
+      : null;
+    if (rawKey && blobUrlCache[rawKey]) {
+      URL.revokeObjectURL(blobUrlCache[rawKey]);
+      delete blobUrlCache[rawKey];
+    }
+  }
+  history = history.filter(x => x.id !== id);
+  try { localStorage.setItem('if2_history', JSON.stringify(history)); } catch (e) {}
+  renderGallery();
+  renderGalleryFull();
+}
+
+function clearHistory() {
+  if (history.length === 0) return;
+  if (!confirm('确定清空所有生成历史？')) return;
+  // Revoke all blob URLs
+  Object.values(blobUrlCache).forEach(u => URL.revokeObjectURL(u));
+  Object.keys(blobUrlCache).forEach(k => delete blobUrlCache[k]);
+  history = [];
+  try { localStorage.setItem('if2_history', JSON.stringify(history)); } catch (e) {}
+  renderGallery();
+  renderGalleryFull();
+  showToast('历史已清空', 'success');
+}
+
+function exportHistory() {
+  if (history.length === 0) { showToast('没有可导出的历史', 'error'); return; }
+  const data = history.map(h => ({ prompt: h.prompt, provider: h.provider, model: h.model, size: h.size, hasRefImage: h.hasRefImage, timestamp: h.timestamp }));
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'imageforge_history.json'; a.click();
+  URL.revokeObjectURL(url);
+  showToast('已导出', 'success');
+}
+
+// ===== Download =====
+async function downloadImage(src, name) {
+  try {
+    // For external URLs, try fetch first, fallback to opening in new tab
+    if (src.startsWith('http')) {
+      try {
+        const resp = await fetch(src, { mode: 'cors' });
+        if (resp.ok) {
+          const blob = await resp.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `imageforge_${name || 'image'}.png`;
+          a.click();
+          URL.revokeObjectURL(url);
+          return;
+        }
+      } catch (e) {
+        // CORS blocked — open in new tab
+      }
+      window.open(src, '_blank');
+      return;
+    }
+    // For data: URLs
+    const resp = await fetch(src);
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `imageforge_${name || 'image'}.png`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    window.open(src, '_blank');
+  }
+}
+
+// ===== Lightbox =====
+let lightboxSrc = '';
+function openLightbox(src) {
+  lightboxSrc = src;
+  const lb = document.createElement('div');
+  lb.className = 'lightbox';
+  lb.id = 'lightboxOverlay';
+  lb.innerHTML = `
+    <img src="${src}" id="lightboxImg" onclick="toggleLightboxZoom(event)">
+    <div class="lightbox-toolbar">
+      <button class="btn btn-ghost btn-sm" onclick="lightboxDownload()">下载</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeLightbox()">关闭</button>
+    </div>
+  `;
+  lb.addEventListener('click', (e) => {
+    if (e.target === lb) closeLightbox();
+  });
+  document.body.appendChild(lb);
+  document.addEventListener('keydown', lightboxKeyHandler);
+}
+function closeLightbox() {
+  const lb = document.getElementById('lightboxOverlay');
+  if (lb) lb.remove();
+  document.removeEventListener('keydown', lightboxKeyHandler);
+}
+function lightboxKeyHandler(e) {
+  if (e.key === 'Escape') closeLightbox();
+}
+function toggleLightboxZoom(e) {
+  e.stopPropagation();
+  e.target.classList.toggle('zoomed');
+}
+function lightboxDownload() {
+  if (!lightboxSrc) return;
+  const a = document.createElement('a');
+  a.href = lightboxSrc;
+  a.download = `imageforge_${Date.now()}.png`;
+  a.click();
+}
+
+// ===== Cancel =====
+function cancelGeneration() {
+  if (abortController) {
+    abortController.abort();
+    abortController = null; // Mark as user-initiated cancel (not timeout)
+  }
+  if (abortTimeout) { clearTimeout(abortTimeout); abortTimeout = null; }
+  hideProgress();
+}
+
+// ===== Toast =====
+function showToast(msg, type = '') {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+// ===== Helpers =====
+function esc(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML.replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+}
+
+function getNestedValue(obj, path) {
+  const parts = path.replace(/\[(\d+)\]/g, '.$1').split('.');
+  let current = obj;
+  for (const part of parts) {
+    if (current == null) return null;
+    current = current[part];
+  }
+  return current;
+}
+
+// ===== Start =====
+init();
+</script>
+</body>
+</html>
